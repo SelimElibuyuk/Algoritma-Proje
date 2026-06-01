@@ -10,7 +10,7 @@ public class MasterRegistrySLL {
     
     private Node head;
 
-    // Appends a package to the end of the log. [cite: 12]
+    // Appends a package to the end of the log. 
     public void addRecord(Package pkg) { 
         Node newNode = new Node(pkg);
         if (head == null) {
@@ -24,7 +24,7 @@ public class MasterRegistrySLL {
         }
     }
 
-    // Traverses the SLL to print the daily record. [cite: 12]
+    // Traverses the SLL to print the daily record. 
     public void displayLog() { 
         System.out.println("--- Master Registry Log ---");
         Node current = head;

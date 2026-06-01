@@ -7,7 +7,7 @@ public class IntakeBufferDLL {
     
     private Node head, tail;
 
-    // Quickly add a newly arrived package to the end of the buffer using the tail pointer. [cite: 18]
+    // Quickly add a newly arrived package to the end of the buffer using the tail pointer. 
     public void insertAtTail(Package pkg) { 
         Node newNode = new Node(pkg);
         if (tail == null) {
@@ -19,7 +19,7 @@ public class IntakeBufferDLL {
         }
     }
 
-    // Removes a package from the buffer so it can be moved to the dispatch preparation area. [cite: 19, 20]
+    // Removes a package from the buffer so it can be moved to the dispatch preparation area. 
     public Package removeFromHead() { 
         if (head == null) return null;
         

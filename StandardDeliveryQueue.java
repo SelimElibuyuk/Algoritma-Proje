@@ -7,7 +7,7 @@ public class StandardDeliveryQueue {
     
     private Node front, rear;
 
-    // adds to the back of the line [cite: 25]
+    // adds to the back of the line 
     public void enqueue(Package pkg) { 
         Node newNode = new Node(pkg);
         if (rear == null) {
@@ -18,7 +18,7 @@ public class StandardDeliveryQueue {
         rear = newNode;
     }
 
-    // removes from the front [cite: 25]
+    // removes from the front 
     public Package dequeue() { 
         if (front == null) return null;
         

@@ -1,35 +1,89 @@
+import java.io.*;
+import java.util.Scanner;
+
 public class Main {
     public static void main(String[] args) {
-        
-        // --- PART A & B OMITTED FOR BREVITY ---
-        // You can paste the previous Part A and B logic here
-        
-        // --- PART C: City Routing (Graph Algorithms) ---
-        System.out.println("\n--> Initializing City Graph (Kayseri Map)...");
+        // --- 1. PROJECT IDENTITY ---
+        System.out.println("===============================================");
+        System.out.println("   ENCODERS LOGISTICS & DISTRIBUTION SYSTEM");
+        System.out.println("   'Fastest delivery in the heart of Kayseri'");
+        System.out.println("===============================================\n");
+
+        // --- 2. INITIALIZE DATA STRUCTURES ---
+        MasterRegistrySLL masterLog = new MasterRegistrySLL();
+        IntakeBufferDLL intakeBuffer = new IntakeBufferDLL();
+        StandardDeliveryQueue deliveryQueue = new StandardDeliveryQueue();
+        TruckLoadingStack truckStack = new TruckLoadingStack();
+        AddressDirectoryAVL addressDirectory = new AddressDirectoryAVL();
         CityGraph cityMap = new CityGraph();
 
-        // Building the map network based on mapData.txt
-        cityMap.addEdge("Meydan", "Alpaslan", 4);
-        cityMap.addEdge("Meydan", "Talas", 8);
-        cityMap.addEdge("Meydan", "Erkilet", 10);
-        cityMap.addEdge("Meydan", "Belsin", 12);
-        cityMap.addEdge("Alpaslan", "Talas", 5);
-        cityMap.addEdge("Alpaslan", "Erkilet", 9);
-        cityMap.addEdge("Alpaslan", "Ildem", 12);
-        cityMap.addEdge("Talas", "Mimsin", 11);
-        cityMap.addEdge("Belsin", "Anbar", 3);
-        cityMap.addEdge("Belsin", "Erkilet", 14);
-        cityMap.addEdge("Ildem", "Mimsin", 6);
-
-        System.out.println("\n--> Calculating Shortest Delivery Routes (Dijkstra's)...");
-        // Example: Finding the fastest route from warehouse hub (Meydan) to Mimsin
-        cityMap.calculateShortestPath("Meydan", "Mimsin");
+        // --- 3. LOAD DATA FROM EXTERNAL FILES ---
         
-        // Example: Finding the fastest route from Belsin to Ildem
-        cityMap.calculateShortestPath("Belsin", "Ildem");
+        // A. Loading City Map Data (CityGraph)
+        try (Scanner mapScanner = new Scanner(new File("mapData.txt"))) {
+            while (mapScanner.hasNextLine()) {
+                String line = mapScanner.nextLine();
+                if (line.startsWith("#") || line.trim().isEmpty()) continue;
+                String[] parts = line.split(" ");
+                cityMap.addEdge(parts[0], parts[1], Integer.parseInt(parts[2]));
+            }
+            System.out.println("--> City map network loaded successfully.");
+        } catch (FileNotFoundException e) {
+            System.out.println("Error: mapData.txt not found!");
+        }
 
-        System.out.println("\n--> Calculating Infrastructure Network (Prim's MST)...");
-        // Finding the most efficient paths connecting all neighborhoods
-        cityMap.calculateMST();
+        // B. Loading Daily Package Data (Warehouse Operations)
+try (Scanner pkgScanner = new Scanner(new File("packageData.txt"))) {
+    int count = 0;
+    while (pkgScanner.hasNextLine()) {
+        String line = pkgScanner.nextLine().trim();
+        
+        // Skip comments, empty lines, or lines that don't contain a space (like "Meydan.")
+        if (line.startsWith("#") || line.isEmpty() || !line.contains(" ")) {
+            continue;
+        }
+        
+        String[] parts = line.split("\\s+");
+        
+        // Ensure we have exactly two parts: ID and Destination
+        if (parts.length >= 2) {
+            Package newPkg = new Package(parts[0], parts[1]);
+            
+            masterLog.addRecord(newPkg);     
+            intakeBuffer.insertAtTail(newPkg); 
+            addressDirectory.insert(newPkg.destination, "ID_" + parts[0]);
+            count++;
+        }
+    }
+    System.out.println("--> " + count + " packages registered and moved to intake buffer.");
+} catch (FileNotFoundException e) {
+    System.out.println("Error: packageData.txt not found!");
+}
+
+        // --- 4. WAREHOUSE WORKFLOW (Queue & Stack) ---
+        System.out.println("\n--> Transferring packages from Buffer (DLL) to Delivery Queue (FIFO)...");
+        Package p;
+        while ((p = intakeBuffer.removeFromHead()) != null) {
+            deliveryQueue.enqueue(p); 
+        }
+
+        System.out.println("--> Loading Truck (LIFO - Stack simulation starting)...");
+        while ((p = deliveryQueue.dequeue()) != null) {
+            truckStack.push(p); 
+        }
+
+        // --- 5. AUDIT & OPTIMIZATION OUTPUTS ---
+        System.out.println("\n--> Daily Audit Log (Master Registry):");
+        masterLog.displayLog();
+
+        System.out.println("\n--> City Routing Optimization:");
+        cityMap.calculateShortestPath("Meydan", "Mimsin"); 
+        cityMap.calculateMST(); 
+        
+        System.out.println("\nAddress Directory Lookup (AVL Test): Packages for Talas -> " + addressDirectory.search("Talas"));
+        
+        System.out.println("\n===============================================");
+        System.out.println("   DAILY LOGISTICS OPERATION COMPLETED");
+        System.out.println("===============================================");
     }
 }

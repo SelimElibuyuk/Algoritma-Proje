@@ -7,14 +7,14 @@ public class TruckLoadingStack {
     
     private Node top;
 
-    // loads a package into the van [cite: 29]
+    // loads a package into the van
     public void push(Package pkg) { 
         Node newNode = new Node(pkg);
         newNode.next = top;
         top = newNode;
     }
 
-    // unloads the most recently loaded package [cite: 29]
+    // unloads the most recently loaded package 
     public Package pop() { 
         if (top == null) return null;
         
