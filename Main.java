@@ -3,13 +3,9 @@ import java.util.Scanner;
 
 public class Main {
     public static void main(String[] args) {
-        // --- 1. PROJECT IDENTITY ---
-        System.out.println("===============================================");
-        System.out.println("   ENCODERS LOGISTICS & DISTRIBUTION SYSTEM");
-        System.out.println("   'Fastest delivery in the heart of Kayseri'");
-        System.out.println("===============================================\n");
-
-        // --- 2. INITIALIZE DATA STRUCTURES ---
+        Scanner input = new Scanner(System.in);
+        
+        // --- 1. INITIALIZE DATA STRUCTURES ---
         MasterRegistrySLL masterLog = new MasterRegistrySLL();
         IntakeBufferDLL intakeBuffer = new IntakeBufferDLL();
         StandardDeliveryQueue deliveryQueue = new StandardDeliveryQueue();
@@ -17,73 +13,136 @@ public class Main {
         AddressDirectoryAVL addressDirectory = new AddressDirectoryAVL();
         CityGraph cityMap = new CityGraph();
 
-        // --- 3. LOAD DATA FROM EXTERNAL FILES ---
-        
-        // A. Loading City Map Data (CityGraph)
-        try (Scanner mapScanner = new Scanner(new File("mapData.txt"))) {
-            while (mapScanner.hasNextLine()) {
-                String line = mapScanner.nextLine();
-                if (line.startsWith("#") || line.trim().isEmpty()) continue;
-                String[] parts = line.split(" ");
-                cityMap.addEdge(parts[0], parts[1], Integer.parseInt(parts[2]));
-            }
-            System.out.println("--> City map network loaded successfully.");
-        } catch (FileNotFoundException e) {
-            System.out.println("Error: mapData.txt not found!");
-        }
+        // --- 2. AUTOMATIC INITIAL LOADING ---
+        loadMapData(cityMap);
+        loadPackageData(masterLog, intakeBuffer, addressDirectory);
 
-        // B. Loading Daily Package Data (Warehouse Operations)
-try (Scanner pkgScanner = new Scanner(new File("packageData.txt"))) {
-    int count = 0;
-    while (pkgScanner.hasNextLine()) {
-        String line = pkgScanner.nextLine().trim();
-        
-        // Skip comments, empty lines, or lines that don't contain a space (like "Meydan.")
-        if (line.startsWith("#") || line.isEmpty() || !line.contains(" ")) {
-            continue;
-        }
-        
-        String[] parts = line.split("\\s+");
-        
-        // Ensure we have exactly two parts: ID and Destination
-        if (parts.length >= 2) {
-            Package newPkg = new Package(parts[0], parts[1]);
-            
-            masterLog.addRecord(newPkg);     
-            intakeBuffer.insertAtTail(newPkg); 
-            addressDirectory.insert(newPkg.destination, "ID_" + parts[0]);
-            count++;
+        // --- 3. INTERACTIVE MENU ---
+        while (true) {
+            System.out.println("\n===============================================");
+            System.out.println("   ENCODERS LOGISTICS & DISTRIBUTION SYSTEM");
+            System.out.println("   'Operational Control Panel'");
+            System.out.println("===============================================");
+            System.out.println("1. Add New Package (Manual Entry)");
+            System.out.println("2. Process Buffer (Move from DLL to Queue)");
+            System.out.println("3. Load Truck (Move from Queue to Stack)");
+            System.out.println("4. Show Audit Logs (Master Registry SLL)");
+            System.out.println("5. Find Shortest Delivery Route (Dijkstra)");
+            System.out.println("6. Show Infrastructure Network (Prim's MST)");
+            System.out.println("7. Search Customer by Neighborhood (AVL Tree)");
+            System.out.println("0. Exit System");
+            System.out.print("\nSelect Operation: ");
+
+            int choice;
+            try {
+                choice = Integer.parseInt(input.nextLine());
+            } catch (NumberFormatException e) {
+                System.out.println("Please enter a valid number.");
+                continue;
+            }
+
+            switch (choice) {
+                case 1:
+                    System.out.print("Enter Package ID (e.g., PKG101): ");
+                    String id = input.nextLine();
+                    System.out.print("Enter Destination (e.g., Talas): ");
+                    String dest = input.nextLine();
+                    Package newP = new Package(id, dest);
+                    
+                    masterLog.addRecord(newP);      // Part A: SLL
+                    intakeBuffer.insertAtTail(newP); // Part A: DLL
+                    addressDirectory.insert(dest, "ID_" + id); // Part B: AVL
+                    System.out.println("--> Package registered successfully in SLL, DLL, and AVL.");
+                    break;
+
+                case 2:
+                    // Removes from DLL head and moves to FIFO Queue
+                    Package pFromBuffer = intakeBuffer.removeFromHead();
+                    if (pFromBuffer != null) {
+                        deliveryQueue.enqueue(pFromBuffer);
+                        System.out.println("--> Moved " + pFromBuffer + " from DLL to Delivery Queue (FIFO).");
+                    } else {
+                        System.out.println("--> Intake Buffer is currently empty!");
+                    }
+                    break;
+
+                case 3:
+                    // Dequeues from Queue and pushes to LIFO Stack
+                    Package pFromQueue = deliveryQueue.dequeue();
+                    if (pFromQueue != null) {
+                        truckStack.push(pFromQueue);
+                        System.out.println("--> Pushed " + pFromQueue + " into Truck Stack (LIFO).");
+                    } else {
+                        System.out.println("--> Delivery Queue is empty!");
+                    }
+                    break;
+
+                case 4:
+                    masterLog.displayLog();
+                    break;
+
+                case 5:
+                    System.out.print("Enter Start Point: ");
+                    String start = input.nextLine();
+                    System.out.print("Enter End Point: ");
+                    String end = input.nextLine();
+                    cityMap.calculateShortestPath(start, end);
+                    break;
+
+                case 6:
+                    cityMap.calculateMST();
+                    break;
+
+                case 7:
+                    System.out.print("Enter Neighborhood to Search: ");
+                    String nh = input.nextLine();
+                    String result = addressDirectory.search(nh);
+                    System.out.println("Search Result: " + result);
+                    break;
+
+                case 0:
+                    System.out.println("Shutting down... Goodbye!");
+                    return;
+
+                default:
+                    System.out.println("Invalid selection. Please try again.");
+            }
         }
     }
-    System.out.println("--> " + count + " packages registered and moved to intake buffer.");
-} catch (FileNotFoundException e) {
-    System.out.println("Error: packageData.txt not found!");
-}
 
-        // --- 4. WAREHOUSE WORKFLOW (Queue & Stack) ---
-        System.out.println("\n--> Transferring packages from Buffer (DLL) to Delivery Queue (FIFO)...");
-        Package p;
-        while ((p = intakeBuffer.removeFromHead()) != null) {
-            deliveryQueue.enqueue(p); 
+    // --- HELPER METHODS FOR LOADING DATA ---
+    private static void loadMapData(CityGraph graph) {
+        try (Scanner sc = new Scanner(new File("mapData.txt"))) {
+            while (sc.hasNextLine()) {
+                String line = sc.nextLine().trim();
+                if (line.startsWith("#") || line.isEmpty()) continue;
+                String[] p = line.split("\\s+");
+                if (p.length >= 3) {
+                    graph.addEdge(p[0], p[1], Integer.parseInt(p[2]));
+                }
+            }
+            System.out.println("--> City Map Infrastructure Loaded.");
+        } catch (Exception e) {
+            System.out.println("Error loading map data: " + e.getMessage());
         }
+    }
 
-        System.out.println("--> Loading Truck (LIFO - Stack simulation starting)...");
-        while ((p = deliveryQueue.dequeue()) != null) {
-            truckStack.push(p); 
+    private static void loadPackageData(MasterRegistrySLL sll, IntakeBufferDLL dll, AddressDirectoryAVL avl) {
+        try (Scanner sc = new Scanner(new File("packageData.txt"))) {
+            while (sc.hasNextLine()) {
+                String line = sc.nextLine().trim();
+                if (line.startsWith("#") || line.isEmpty() || !line.contains(" ")) continue;
+                String[] p = line.split("\\s+");
+                if (p.length >= 2) {
+                    Package pkg = new Package(p[0], p[1]);
+                    sll.addRecord(pkg);
+                    dll.insertAtTail(pkg);
+                    avl.insert(p[1], "ID_" + p[0]);
+                }
+            }
+            System.out.println("--> Daily Package Records Loaded.");
+        } catch (Exception e) {
+            System.out.println("Error loading package data: " + e.getMessage());
         }
-
-        // --- 5. AUDIT & OPTIMIZATION OUTPUTS ---
-        System.out.println("\n--> Daily Audit Log (Master Registry):");
-        masterLog.displayLog();
-
-        System.out.println("\n--> City Routing Optimization:");
-        cityMap.calculateShortestPath("Meydan", "Mimsin"); 
-        cityMap.calculateMST(); 
-        
-        System.out.println("\nAddress Directory Lookup (AVL Test): Packages for Talas -> " + addressDirectory.search("Talas"));
-        
-        System.out.println("\n===============================================");
-        System.out.println("   DAILY LOGISTICS OPERATION COMPLETED");
-        System.out.println("===============================================");
     }
 }
